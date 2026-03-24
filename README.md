@@ -70,7 +70,7 @@
    python manage.py createsuperuser
    ```
 
-6. (Опционально) Загрузить тестовые данные
+6. Загрузить тестовые данные в БД
    ```
    python manage.py seed_data
    ```
@@ -89,8 +89,12 @@
    git clone https://github.com/HawHack/lidru
    cd lidru
    ```
+3. Загрузить тестовые данные в БД
+   ```
+   python manage.py seed_data
+   ```
 
-3. Запустите приложение:
+4. Запустите приложение:
    ```
    docker-compose up
    ```
