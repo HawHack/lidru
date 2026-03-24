@@ -31,7 +31,7 @@
 
 1. Клонировать репозиторий
    ```
-   git clone https://github.com/HawHack/lidru/tree/lidru
+   git clone https://github.com/HawHack/lidru
    cd lidru
    ```
 
@@ -86,7 +86,7 @@
 
 2. Клонировать репозиторий
    ```
-   git clone https://github.com/HawHack/lidru/tree/lidru
+   git clone https://github.com/HawHack/lidru
    cd lidru
    ```
 
