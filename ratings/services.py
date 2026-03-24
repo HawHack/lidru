@@ -1,4 +1,6 @@
-from django.db.models import Sum
+from django.db.models import Sum, Count, Q, Avg
+from django.db.models.functions import Coalesce
+
 from users.models import User
 from events.models import EventParticipation
 
@@ -14,66 +16,66 @@ LEVELS = [
 def get_user_rating(user):
     if not user.is_authenticated:
         return 0
-
     result = EventParticipation.objects.filter(
-        participant=user,
-        status='confirmed'
-    ).aggregate(total_points=Sum('earned_points'))
-
-    return result['total_points'] or 0
+        participant=user, status='confirmed',
+    ).aggregate(total=Sum('earned_points'))
+    return result['total'] or 0
 
 
 def get_user_confirmed_events_count(user):
     if not user.is_authenticated:
         return 0
-
     return EventParticipation.objects.filter(
-        participant=user,
-        status='confirmed'
+        participant=user, status='confirmed',
     ).count()
 
 
-def get_leaderboard(direction=None, city=None):
-    queryset = User.objects.filter(role='participant')
+def _participant_with_stats():
+    """Базовый queryset участников с аннотированной статистикой."""
+    return User.objects.filter(role='participant').annotate(
+        rating=Coalesce(
+            Sum(
+                'event_participations__earned_points',
+                filter=Q(event_participations__status='confirmed'),
+            ),
+            0,
+        ),
+        confirmed_events_count=Count(
+            'event_participations',
+            filter=Q(event_participations__status='confirmed'),
+        ),
+    )
 
+
+def get_leaderboard(direction=None, city=None, limit=100):
+    qs = _participant_with_stats()
     if direction:
-        queryset = queryset.filter(direction=direction)
-
+        qs = qs.filter(direction=direction)
     if city:
-        queryset = queryset.filter(city__icontains=city)
-
-    leaderboard = []
-    for user in queryset:
-        participations = EventParticipation.objects.filter(
-            participant=user,
-            status='confirmed'
-        )
-        total_rating = participations.aggregate(total=Sum('earned_points'))['total'] or 0
-        confirmed_count = participations.count()
-
-        leaderboard.append({
-            'user': user,
-            'rating': total_rating,
-            'confirmed_events_count': confirmed_count,
-        })
-
-    leaderboard.sort(key=lambda x: x['rating'], reverse=True)
-    return leaderboard[:100]
+        qs = qs.filter(city__icontains=city)
+    return qs.order_by('-rating')[:limit]
 
 
 def get_user_rank(user):
-    leaderboard = get_leaderboard()
-    for index, item in enumerate(leaderboard, start=1):
-        if item['user'].id == user.id:
-            return index
-    return None
+    if user.role != 'participant':
+        return None
+    user_rating = get_user_rating(user)
+    rank = (
+        _participant_with_stats()
+        .filter(rating__gt=user_rating)
+        .count()
+        + 1
+    )
+    return rank
 
 
 def get_user_portfolio(user):
-    return EventParticipation.objects.filter(
-        participant=user,
-        status='confirmed'
-    ).select_related('event', 'event__organizer').order_by('-confirmed_at', '-created_at')
+    return (
+        EventParticipation.objects
+        .filter(participant=user, status='confirmed')
+        .select_related('event', 'event__organizer')
+        .order_by('-confirmed_at', '-created_at')
+    )
 
 
 def get_level_info(points):
@@ -81,13 +83,12 @@ def get_level_info(points):
     next_level = None
     points_to_next = 0
 
-    for i, (level_name, min_points) in enumerate(LEVELS):
-        if points >= min_points:
-            current_level = level_name
+    for i, (name, min_pts) in enumerate(LEVELS):
+        if points >= min_pts:
+            current_level = name
             if i + 1 < len(LEVELS):
-                next_level_name, next_level_points = LEVELS[i + 1]
-                next_level = next_level_name
-                points_to_next = max(0, next_level_points - points)
+                next_level = LEVELS[i + 1][0]
+                points_to_next = max(0, LEVELS[i + 1][1] - points)
             else:
                 next_level = None
                 points_to_next = 0

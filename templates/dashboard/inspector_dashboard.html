@@ -17,17 +17,14 @@
                 <label class="form-label">Возраст от</label>
                 <input type="number" name="age_min" class="form-control" value="{{ filters.age_min }}">
             </div>
-
             <div class="col-md-2">
                 <label class="form-label">Возраст до</label>
                 <input type="number" name="age_max" class="form-control" value="{{ filters.age_max }}">
             </div>
-
             <div class="col-md-2">
                 <label class="form-label">Город</label>
                 <input type="text" name="city" class="form-control" value="{{ filters.city }}">
             </div>
-
             <div class="col-md-2">
                 <label class="form-label">Направление</label>
                 <select name="direction" class="form-select">
@@ -39,17 +36,14 @@
                     {% endfor %}
                 </select>
             </div>
-
             <div class="col-md-2">
                 <label class="form-label">Мин. рейтинг</label>
                 <input type="number" name="min_rating" class="form-control" value="{{ filters.min_rating }}">
             </div>
-
             <div class="col-md-2">
                 <label class="form-label">Мин. мероприятий</label>
                 <input type="number" name="min_events" class="form-control" value="{{ filters.min_events }}">
             </div>
-
             <div class="col-12">
                 <button type="submit" class="btn btn-primary me-2">Применить</button>
                 <a href="{% url 'inspector_dashboard' %}" class="btn btn-outline-secondary">Сбросить</a>
@@ -60,7 +54,7 @@
 
 <div class="card shadow-sm">
     <div class="card-body">
-        {% if candidate_rows %}
+        {% if candidates %}
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead>
@@ -76,17 +70,18 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for row in candidate_rows %}
+                        {% for c in candidates %}
                             <tr>
-                                <td>{{ row.user.full_name|default:row.user.username }}</td>
-                                <td>{{ row.user.age|default:"—" }}</td>
-                                <td>{{ row.user.city|default:"—" }}</td>
-                                <td>{{ row.user.direction|default:"—" }}</td>
-                                <td><strong>{{ row.rating }}</strong></td>
-                                <td>{{ row.events_count }}</td>
-                                <td>{{ row.avg_score }}</td>
+                                <td>{{ c.full_name|default:c.username }}</td>
+                                <td>{{ c.age|default:"—" }}</td>
+                                <td>{{ c.city|default:"—" }}</td>
+                                <td>{{ c.direction|default:"—" }}</td>
+                                <td><strong>{{ c.rating }}</strong></td>
+                                <td>{{ c.events_count }}</td>
+                                <td>{{ c.avg_score|floatformat:1 }}</td>
                                 <td>
-                                    <a href="{% url 'candidate_report' row.user.id %}" class="btn btn-sm btn-outline-primary">
+                                    <a href="{% url 'candidate_report' c.id %}"
+                                       class="btn btn-sm btn-outline-primary">
                                         Открыть отчет
                                     </a>
                                 </td>

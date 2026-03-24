@@ -1,12 +1,12 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 
 from users.models import User
 from .forms import EventForm, OrganizerReviewForm
 from .models import Event, EventParticipation, OrganizerReview
+from .services import build_organizer_context
 
 
 def event_list_view(request):
@@ -17,7 +17,6 @@ def event_list_view(request):
 
     if direction:
         events = events.filter(direction=direction)
-
     if status == 'upcoming':
         events = events.filter(date__gte=timezone.now())
     elif status == 'past':
@@ -40,10 +39,8 @@ def event_detail_view(request, event_id):
 
     if request.user.is_authenticated and request.user.role == 'participant':
         participation = EventParticipation.objects.filter(
-            event=event,
-            participant=request.user
+            event=event, participant=request.user,
         ).first()
-
         if participation:
             checkin_url = request.build_absolute_uri(
                 f'/events/checkin/{participation.qr_token}/'
@@ -67,18 +64,18 @@ def event_create_view(request):
         messages.warning(request, 'Ваш аккаунт организатора еще не одобрен.')
         return redirect('event_list')
 
-    if request.method == 'POST':
-        form = EventForm(request.POST)
-        if form.is_valid():
-            event = form.save(commit=False)
-            event.organizer = request.user
-            event.save()
-            messages.success(request, 'Мероприятие успешно создано.')
-            return redirect('event_detail', event_id=event.id)
-    else:
-        form = EventForm()
+    form = EventForm(request.POST or None)
+    if form.is_valid():
+        event = form.save(commit=False)
+        event.organizer = request.user
+        event.save()
+        messages.success(request, 'Мероприятие успешно создано.')
+        return redirect('event_detail', event_id=event.id)
 
-    return render(request, 'events/event_form.html', {'form': form, 'page_title': 'Создать мероприятие'})
+    return render(request, 'events/event_form.html', {
+        'form': form,
+        'page_title': 'Создать мероприятие',
+    })
 
 
 @login_required
@@ -89,16 +86,16 @@ def event_update_view(request, event_id):
         messages.error(request, 'Вы не можете редактировать это мероприятие.')
         return redirect('event_detail', event_id=event.id)
 
-    if request.method == 'POST':
-        form = EventForm(request.POST, instance=event)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Мероприятие обновлено.')
-            return redirect('event_detail', event_id=event.id)
-    else:
-        form = EventForm(instance=event)
+    form = EventForm(request.POST or None, instance=event)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Мероприятие обновлено.')
+        return redirect('event_detail', event_id=event.id)
 
-    return render(request, 'events/event_form.html', {'form': form, 'page_title': 'Редактировать мероприятие'})
+    return render(request, 'events/event_form.html', {
+        'form': form,
+        'page_title': 'Редактировать мероприятие',
+    })
 
 
 @login_required
@@ -109,12 +106,11 @@ def register_for_event_view(request, event_id):
         messages.error(request, 'Записываться на мероприятие могут только участники.')
         return redirect('event_detail', event_id=event.id)
 
-    participation, created = EventParticipation.objects.get_or_create(
+    _, created = EventParticipation.objects.get_or_create(
         event=event,
         participant=request.user,
-        defaults={'status': 'registered'}
+        defaults={'status': 'registered'},
     )
-
     if created:
         messages.success(request, 'Вы успешно записались на мероприятие.')
     else:
@@ -125,10 +121,12 @@ def register_for_event_view(request, event_id):
 
 @login_required
 def my_events_view(request):
-    participations = EventParticipation.objects.filter(
-        participant=request.user
-    ).select_related('event', 'event__organizer').order_by('-created_at')
-
+    participations = (
+        EventParticipation.objects
+        .filter(participant=request.user)
+        .select_related('event', 'event__organizer')
+        .order_by('-created_at')
+    )
     return render(request, 'events/my_events.html', {'participations': participations})
 
 
@@ -140,10 +138,12 @@ def organizer_event_participants_view(request, event_id):
         messages.error(request, 'Вы не можете просматривать участников этого мероприятия.')
         return redirect('event_detail', event_id=event.id)
 
-    participations = EventParticipation.objects.filter(
-        event=event
-    ).select_related('participant').order_by('-created_at')
-
+    participations = (
+        EventParticipation.objects
+        .filter(event=event)
+        .select_related('participant')
+        .order_by('-created_at')
+    )
     return render(request, 'events/event_participants.html', {
         'event': event,
         'participations': participations,
@@ -156,12 +156,12 @@ def confirm_participation_view(request, participation_id):
     event = participation.event
 
     if request.user != event.organizer:
-        messages.error(request, 'Только организатор этого мероприятия может подтверждать участие.')
+        messages.error(request, 'Только организатор может подтверждать участие.')
         return redirect('event_detail', event_id=event.id)
 
     if participation.status != 'confirmed':
         participation.status = 'confirmed'
-        participation.earned_points = int(event.base_points * event.difficulty_coef)
+        participation.earned_points = event.calculated_points()
         participation.confirmed_by = request.user
         participation.confirmed_at = timezone.now()
         participation.save()
@@ -184,57 +184,28 @@ def checkin_by_qr_view(request, token):
         messages.error(request, 'Этот QR-код не принадлежит вашему участию.')
         return redirect('event_detail', event_id=participation.event.id)
 
-    if participation.status == 'registered':
-        participation.status = 'attended'
+    status_messages = {
+        'registered': ('attended', 'Присутствие отмечено. Ожидайте подтверждения.'),
+        'attended': (None, 'Вы уже отметили присутствие.'),
+        'confirmed': (None, 'Ваше участие уже подтверждено.'),
+    }
+    new_status, msg = status_messages.get(participation.status, (None, ''))
+
+    if new_status:
+        participation.status = new_status
         participation.save()
-        messages.success(request, 'Присутствие отмечено через QR. Ожидайте подтверждения организатора.')
-    elif participation.status == 'attended':
-        messages.info(request, 'Вы уже отметили присутствие по QR.')
-    elif participation.status == 'confirmed':
-        messages.info(request, 'Ваше участие уже подтверждено организатором.')
+        messages.success(request, msg)
+    else:
+        messages.info(request, msg)
 
     return redirect('event_detail', event_id=participation.event.id)
 
 
+# ---------- Organizer profile ----------
+
 def organizer_detail_view(request, organizer_id):
     organizer = get_object_or_404(User, id=organizer_id, role='organizer')
-
-    events = Event.objects.filter(organizer=organizer).order_by('-date')
-    reviews = OrganizerReview.objects.filter(organizer=organizer).select_related('participant').order_by('-created_at')
-    reviews_count = reviews.count()
-
-    trust_rating = reviews.aggregate(avg=Avg('rating'))['avg']
-    events_count = events.count()
-
-    bonus_list = list(
-        events.exclude(bonus_text='')
-        .values_list('bonus_text', flat=True)
-        .distinct()
-    )
-
-    existing_review = None
-    can_leave_review = False
-
-    if request.user.is_authenticated and request.user.role == 'participant':
-        existing_review = OrganizerReview.objects.filter(
-            organizer=organizer,
-            participant=request.user
-        ).first()
-
-        if organizer != request.user and not existing_review:
-            can_leave_review = True
-
-    context = {
-        'organizer': organizer,
-        'events': events,
-        'events_count': events_count,
-        'reviews': reviews,
-        'reviews_count': reviews_count,
-        'trust_rating': trust_rating,
-        'bonus_list': bonus_list,
-        'existing_review': existing_review,
-        'can_leave_review': can_leave_review,
-    }
+    context = build_organizer_context(organizer, request.user)
     return render(request, 'events/organizer_detail.html', context)
 
 
@@ -250,42 +221,24 @@ def add_organizer_review_view(request, organizer_id):
         messages.error(request, 'Нельзя оставить отзыв самому себе.')
         return redirect('organizer_detail', organizer_id=organizer.id)
 
-    existing_review = OrganizerReview.objects.filter(
-        organizer=organizer,
-        participant=request.user
-    ).first()
-
-    if existing_review:
+    if OrganizerReview.objects.filter(organizer=organizer, participant=request.user).exists():
         messages.info(request, 'Вы уже оставляли отзыв этому организатору.')
         return redirect('organizer_detail', organizer_id=organizer.id)
 
-    if request.method == 'POST':
-        form = OrganizerReviewForm(request.POST)
-        if form.is_valid():
-            review = form.save(commit=False)
-            review.organizer = organizer
-            review.participant = request.user
-            review.save()
-            messages.success(request, 'Отзыв успешно добавлен.')
-            return redirect('organizer_detail', organizer_id=organizer.id)
-    else:
-        form = OrganizerReviewForm()
+    form = OrganizerReviewForm(request.POST or None)
+    if form.is_valid():
+        review = form.save(commit=False)
+        review.organizer = organizer
+        review.participant = request.user
+        review.save()
+        messages.success(request, 'Отзыв успешно добавлен.')
+        return redirect('organizer_detail', organizer_id=organizer.id)
 
-    return render(request, 'events/organizer_detail.html', {
-        'organizer': organizer,
+    # Контекст строится сервисом — ноль дублирования
+    context = build_organizer_context(organizer, request.user)
+    context.update({
         'review_form': form,
         'show_review_form': True,
-        'events': Event.objects.filter(organizer=organizer).order_by('-date'),
-        'events_count': Event.objects.filter(organizer=organizer).count(),
-        'reviews': OrganizerReview.objects.filter(organizer=organizer).select_related('participant').order_by('-created_at'),
-        'reviews_count': OrganizerReview.objects.filter(organizer=organizer).count(),
-        'trust_rating': OrganizerReview.objects.filter(organizer=organizer).aggregate(avg=Avg('rating'))['avg'],
-        'bonus_list': list(
-            Event.objects.filter(organizer=organizer)
-            .exclude(bonus_text='')
-            .values_list('bonus_text', flat=True)
-            .distinct()
-        ),
-        'existing_review': existing_review,
         'can_leave_review': True,
     })
+    return render(request, 'events/organizer_detail.html', context)

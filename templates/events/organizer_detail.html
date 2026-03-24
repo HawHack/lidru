@@ -87,7 +87,8 @@
 
                 {% if reviews %}
                     {% for review in reviews %}
-                        <div class="border rounded p-3 mb-3">
+                        <div class="border rounded p-3 mb-3"
+                             style="border-color: var(--border) !important;">
                             <div class="d-flex justify-content-between">
                                 <strong>{{ review.participant.full_name|default:review.participant.username }}</strong>
                                 <span class="badge bg-warning text-dark">★ {{ review.rating }}/5</span>
@@ -99,9 +100,7 @@
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="alert alert-info mb-0">
-                        Пока нет отзывов.
-                    </div>
+                    <div class="alert alert-info mb-0">Пока нет отзывов.</div>
                 {% endif %}
             </div>
         </div>
@@ -111,14 +110,14 @@
         <div class="card shadow-sm mb-3">
             <div class="card-body">
                 <h5>Количество мероприятий</h5>
-                <h2 class="text-primary">{{ events_count }}</h2>
+                <h2 class="stat-accent">{{ events_count }}</h2>
             </div>
         </div>
 
         <div class="card shadow-sm mb-3">
             <div class="card-body">
                 <h5>Рейтинг доверия</h5>
-                <h2 class="text-success">
+                <h2 class="stat-success">
                     {% if trust_rating %}
                         {{ trust_rating|floatformat:1 }}/5
                     {% else %}
@@ -132,14 +131,13 @@
         <div class="card shadow-sm mb-3">
             <div class="card-body">
                 <h5>Количество отзывов</h5>
-                <h2 class="text-dark">{{ reviews_count }}</h2>
+                <h2>{{ reviews_count }}</h2>
             </div>
         </div>
 
         <div class="card shadow-sm">
             <div class="card-body">
                 <h5>Обычно выдаёт бонусы</h5>
-
                 {% if bonus_list %}
                     <ul class="mb-0">
                         {% for bonus in bonus_list %}

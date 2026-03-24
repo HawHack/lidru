@@ -20,7 +20,8 @@
                     <div class="row g-3">
                         {% for event in latest_events %}
                             <div class="col-md-6">
-                                <div class="border rounded p-3 h-100">
+                                <div class="border rounded p-3 h-100"
+                                     style="border-color: var(--border) !important;">
                                     <h5 class="mb-2">{{ event.title }}</h5>
                                     <p class="text-muted mb-2">{{ event.date|date:"d.m.Y H:i" }}</p>
                                     <p class="mb-1">
@@ -39,9 +40,7 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="alert alert-info mb-0">
-                        Пока нет мероприятий.
-                    </div>
+                    <div class="alert alert-info mb-0">Пока нет мероприятий.</div>
                 {% endif %}
             </div>
         </div>
@@ -80,15 +79,13 @@
                                 <strong>{{ item.total }}</strong>
                             </div>
                             <div class="progress" style="height: 10px;">
-                                <div class="progress-bar" role="progressbar" style="width: {% widthratio item.total 10 100 %}%;">
-                                </div>
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {% widthratio item.total 10 100 %}%;"></div>
                             </div>
                         </div>
                     {% endfor %}
                 {% else %}
-                    <div class="alert alert-info mb-0">
-                        Нет данных по направлениям.
-                    </div>
+                    <div class="alert alert-info mb-0">Нет данных по направлениям.</div>
                 {% endif %}
             </div>
         </div>
@@ -101,10 +98,14 @@
 
 {% if user.is_authenticated and chart_data_json != "[]" %}
 <script>
-    const labels = JSON.parse('{{ chart_labels_json|escapejs }}');
-    const data = JSON.parse('{{ chart_data_json|escapejs }}');
+    var labels = JSON.parse('{{ chart_labels_json|escapejs }}');
+    var data   = JSON.parse('{{ chart_data_json|escapejs }}');
 
-    const ctx = document.getElementById('ratingChart').getContext('2d');
+    // Берём accent-цвет прямо из CSS — автоматически меняется вместе с темой
+    var accent = getComputedStyle(document.documentElement)
+                     .getPropertyValue('--accent').trim();
+
+    var ctx = document.getElementById('ratingChart').getContext('2d');
 
     new Chart(ctx, {
         type: 'line',
@@ -113,23 +114,19 @@
             datasets: [{
                 label: 'Накопленные баллы',
                 data: data,
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.15)',
+                borderColor: accent,
+                backgroundColor: accent + '26',   /* 15% opacity */
                 fill: true,
                 tension: 0.25
             }]
         },
         options: {
             responsive: true,
-            plugins: {
-                legend: {
-                    display: true
-                }
-            },
+            plugins: { legend: { display: true } },
             scales: {
-                y: {
-                    beginAtZero: true
-                }
+                y: { beginAtZero: true },
+                x: { ticks: { color: getComputedStyle(document.documentElement)
+                                  .getPropertyValue('--text-muted').trim() } },
             }
         }
     });

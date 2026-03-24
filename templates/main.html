@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Лид.ру{% endblock %}
+
+{% block content %}
+<div class="hero-card mb-4">
+    <div class="hero-badge">
+        Корпоративная платформа развития, достижений и рейтинга
+    </div>
+
+    <h1 class="hero-title">Лид.ру</h1>
+
+    <p class="hero-subtitle mb-4">
+        Единая цифровая среда для учета достижений, оценки активности,
+        управления мероприятиями и формирования сильного кадрового резерва.
+        Участники, организаторы и специалисты работают в одной прозрачной системе
+        с понятными метриками и актуальной аналитикой.
+    </p>
+
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="/events/" class="btn btn-primary btn-lg">Смотреть мероприятия</a>
+        <a href="{% url 'leaderboard' %}" class="btn btn-outline-primary btn-lg">Открыть рейтинг</a>
+        {% if not user.is_authenticated %}
+            <a href="{% url 'register' %}" class="btn btn-secondary btn-lg">Начать работу</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="metric-card">
+            <div class="metric-label">Для участников</div>
+            <h4 class="mb-2">Развитие и личный рейтинг</h4>
+            <p>
+                Посещайте мероприятия, накапливайте баллы,
+                отслеживайте достижения и формируйте цифровое портфолио.
+            </p>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="metric-card">
+            <div class="metric-label">Для организаторов</div>
+            <h4 class="mb-2">Управление активностью сообщества</h4>
+            <p>
+                Создавайте мероприятия, работайте со списками участников,
+                подтверждайте активность и повышайте доверие к своей работе.
+            </p>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="metric-card">
+            <div class="metric-label">Для кадрового резерва</div>
+            <h4 class="mb-2">Объективный и прозрачный отбор</h4>
+            <p>
+                Используйте рейтинг, отчеты и аналитику,
+                чтобы находить сильных кандидатов на основе данных.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

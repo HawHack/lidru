@@ -19,12 +19,11 @@
                     {% endfor %}
                 </select>
             </div>
-
             <div class="col-md-4">
                 <label class="form-label">Город</label>
-                <input type="text" name="city" class="form-control" value="{{ selected_city|default:'' }}" placeholder="Введите город">
+                <input type="text" name="city" class="form-control"
+                       value="{{ selected_city|default:'' }}" placeholder="Введите город">
             </div>
-
             <div class="col-md-4 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary me-2">Применить</button>
                 <a href="{% url 'leaderboard' %}" class="btn btn-outline-secondary">Сбросить</a>
@@ -49,24 +48,20 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in leaderboard %}
+                        {% for entry in leaderboard %}
                             <tr>
                                 <td>
-                                    {% if forloop.counter == 1 %}
-                                        🥇 {{ forloop.counter }}
-                                    {% elif forloop.counter == 2 %}
-                                        🥈 {{ forloop.counter }}
-                                    {% elif forloop.counter == 3 %}
-                                        🥉 {{ forloop.counter }}
-                                    {% else %}
-                                        {{ forloop.counter }}
+                                    {% if forloop.counter == 1 %}🥇
+                                    {% elif forloop.counter == 2 %}🥈
+                                    {% elif forloop.counter == 3 %}🥉
                                     {% endif %}
+                                    {{ forloop.counter }}
                                 </td>
-                                <td>{{ item.user.full_name|default:item.user.username }}</td>
-                                <td>{{ item.user.direction|default:"—" }}</td>
-                                <td>{{ item.user.city|default:"—" }}</td>
-                                <td><strong>{{ item.rating }}</strong></td>
-                                <td>{{ item.confirmed_events_count }}</td>
+                                <td>{{ entry.full_name|default:entry.username }}</td>
+                                <td>{{ entry.direction|default:"—" }}</td>
+                                <td>{{ entry.city|default:"—" }}</td>
+                                <td><strong>{{ entry.rating }}</strong></td>
+                                <td>{{ entry.confirmed_events_count }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
