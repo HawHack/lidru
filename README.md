@@ -89,15 +89,16 @@
    git clone https://github.com/HawHack/lidru
    cd lidru
    ```
-3. Загрузить тестовые данные в БД
+3. Запустите приложение:
+   ```
+   docker-compose up
+   ```
+4. Загрузить тестовые данные в БД (Ввод через терминал докера после запуска)
    ```
    python manage.py seed_data
    ```
 
-4. Запустите приложение:
-   ```
-   docker-compose up
-   ```
+
 
 ## ПОСЛЕ ЗАПУСКА
 
